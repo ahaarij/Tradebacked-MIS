@@ -6,7 +6,7 @@
   Edit $SharePointFolder and $ExcelPattern to match your setup.
 #>
 
-# ── CONFIG ───────────────────────────────────────────────────────────────────
+# CONFIG
 $GitDir           = "C:\TBDashboard\repo"
 $SharePointFolder = "C:\Users\Administrator\KAYZEE CURTAINS & UPHOLSTERY FABRICS TRADING LLC\Cred-Desk - Documents"
 $ExcelPattern     = "Tradebacked*MIS*.xls?"
@@ -15,7 +15,6 @@ $BuildScript      = "C:\TBDashboard\repo\tb-dashboard-deploy\build\build_dashboa
 $Python           = "python"
 $LogFile          = "C:\TBDashboard\update.log"
 $StampFile        = "C:\TBDashboard\.last_source.sha256"
-# ─────────────────────────────────────────────────────────────────────────────
 
 function Log([string]$m) {
     $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $m"
@@ -23,21 +22,20 @@ function Log([string]$m) {
     Add-Content -Path $LogFile -Value $line
 }
 
-# ── 1. git pull ───────────────────────────────────────────────────────────────
+# 1. git pull
 if (Test-Path "$GitDir\.git") {
     Push-Location $GitDir
     $before = & git rev-parse HEAD 2>$null
     & git pull origin main 2>&1 | ForEach-Object { Log "git: $_" }
     $after = & git rev-parse HEAD 2>$null
     Pop-Location
-    # Restart Flask service if code changed
     if ($before -ne $after) {
-        Log "Code updated — restarting tb-dashboard service"
+        Log "Code updated - restarting tb-dashboard service"
         Restart-Service tb-dashboard -ErrorAction SilentlyContinue
     }
 }
 
-# ── 2. Find newest Excel in SharePoint folder ─────────────────────────────────
+# 2. Find newest Excel in SharePoint folder
 $xlsx = Get-ChildItem -Path $SharePointFolder -Recurse -File |
         Where-Object { $_.Name -like $ExcelPattern -and $_.Name -notlike '~$*' } |
         Sort-Object LastWriteTime -Descending |
@@ -48,7 +46,7 @@ if (-not $xlsx) {
     exit 0
 }
 
-# Wait to confirm file isn't still syncing
+# Wait to confirm file is not still syncing
 $s1 = $xlsx.Length
 Start-Sleep -Seconds 5
 $xlsx.Refresh()
@@ -58,7 +56,7 @@ if ($s1 -ne $s2) {
     exit 0
 }
 
-# ── 3. Skip rebuild if Excel unchanged ────────────────────────────────────────
+# 3. Skip rebuild if Excel unchanged
 $hash = (Get-FileHash $xlsx.FullName -Algorithm SHA256).Hash
 if ((Test-Path $StampFile) -and ((Get-Content $StampFile -Raw).Trim() -eq $hash)) {
     exit 0
@@ -66,7 +64,7 @@ if ((Test-Path $StampFile) -and ((Get-Content $StampFile -Raw).Trim() -eq $hash)
 
 Log "Rebuilding from $($xlsx.Name)..."
 
-# Build to temp then swap — live page never goes down mid-write
+# Build to temp then swap so live page never goes down mid-write
 $dest = Join-Path $SiteDir "index.html"
 $tmp  = Join-Path $SiteDir "index.building.tmp"
 
@@ -82,7 +80,7 @@ if ($code -eq 0 -and (Test-Path $tmp)) {
         Move-Item $tmp $dest
     }
     Set-Content $StampFile $hash
-    Log "Published — dashboard.cred-desk.com updated"
+    Log "Published - dashboard.cred-desk.com updated"
 } else {
     Remove-Item $tmp -ErrorAction SilentlyContinue
     Log "Build FAILED for $($xlsx.Name); previous dashboard stays online"
