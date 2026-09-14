@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tradebacked MIS dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..800&display=swap" rel="stylesheet">
+<style>
+/*__CSS__*/
+</style>
+</head>
+<body>
+<header class="band">
+  <div class="band-top">
+    <div class="brand">
+      <h1>Tradebacked MIS</h1>
+      <p id="srcLine"></p>
+    </div>
+    <div class="controls">
+      <div class="segctl" role="group" aria-label="Portfolio segment">
+        <button data-seg="all" aria-pressed="true">All facilities</button>
+        <button data-seg="active" aria-pressed="false">Active (limited)</button>
+        <button data-seg="liq" aria-pressed="false">Liquidating stock</button>
+      </div>
+      <label class="ctl">As of <input type="date" id="asof"></label>
+      <label class="btn" title="Load a newer copy of the MIS workbook">Load updated MIS<input type="file" id="file" accept=".xlsx,.xlsm" hidden></label>
+      <button class="btn" id="printBtn">Print this view</button>
+    </div>
+  </div>
+  <div class="kpis" id="kpis"></div>
+</header>
+
+<nav class="tabs" role="tablist" id="tabs">
+  <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+  <button role="tab" data-tab="facilities" aria-selected="false">Facilities</button>
+  <button role="tab" data-tab="ageing" aria-selected="false">Ageing &amp; overdue</button>
+  <button role="tab" data-tab="maturities" aria-selected="false">Maturities &amp; cash</button>
+  <button role="tab" data-tab="fees" aria-selected="false">Custodian fees &amp; interest</button>
+  <button role="tab" data-tab="pipeline" aria-selected="false">Pipeline</button>
+  <button role="tab" data-tab="register" aria-selected="false">Deal register</button>
+  <button role="tab" data-tab="checks" aria-selected="false">Data checks</button>
+</nav>
+
+<main>
+  <section class="panel active" id="tab-overview"></section>
+  <section class="panel" id="tab-facilities"></section>
+  <section class="panel" id="tab-ageing"></section>
+  <section class="panel" id="tab-maturities"></section>
+  <section class="panel" id="tab-fees"></section>
+  <section class="panel" id="tab-pipeline"></section>
+  <section class="panel" id="tab-register"></section>
+  <section class="panel" id="tab-checks"></section>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true"></aside>
+<div id="tip" role="tooltip"></div>
+<div id="toast" role="status"></div>
+
+<script id="snapshot" type="application/json">__DATA__</script>
+<script>
+/*__JS__*/
+</script>
+</body>
+</html>

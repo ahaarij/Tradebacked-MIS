@@ -1,0 +1,8 @@
+*.bak
+.DS_Store
+__pycache__/
+*.pyc
+*.tmp
+*.building.tmp
+.last_source.sha256
+update.log

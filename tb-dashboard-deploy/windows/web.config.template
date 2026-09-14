@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Tradebacked MIS dashboard - IIS site configuration (written by install-iis.ps1)
+  Access: Windows login AND membership of the group(s) below.
+  Anonymous access is switched off for the site in applicationHost.config by the installer.
+  To allow several groups, separate them with commas: roles="COMPANY\Finance-MIS,COMPANY\Directors"
+-->
+<configuration>
+  <system.webServer>
+    <defaultDocument enabled="true">
+      <files>
+        <clear />
+        <add value="index.html" />
+      </files>
+    </defaultDocument>
+    <directoryBrowse enabled="false" />
+    <security>
+      <authorization>
+        <clear />
+        <add accessType="Allow" roles="__ALLOWED_GROUP__" />
+      </authorization>
+    </security>
+    <httpProtocol>
+      <customHeaders>
+        <add name="X-Robots-Tag" value="noindex, nofollow" />
+        <add name="Cache-Control" value="no-store, max-age=0" />
+        <add name="X-Frame-Options" value="DENY" />
+        <add name="X-Content-Type-Options" value="nosniff" />
+        <add name="Referrer-Policy" value="no-referrer" />
+      </customHeaders>
+    </httpProtocol>
+  </system.webServer>
+</configuration>

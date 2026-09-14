@@ -1,0 +1,7 @@
+# Cloudflare Pages response headers for every file
+/*
+  X-Robots-Tag: noindex, nofollow
+  Cache-Control: no-store, max-age=0
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
