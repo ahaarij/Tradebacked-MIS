@@ -1,5 +1,6 @@
-from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file, session, redirect, url_for, Response
 import sqlite3
+import json
 import os
 import secrets
 import functools
@@ -92,10 +93,44 @@ def require_admin(f):
 
 # ── Dashboard ────────────────────────────────────────────────────────────────
 
+def _build_user_menu(name, role):
+    """Return an HTML snippet injected before </body> to add the user menu to the dashboard header."""
+    user_json = json.dumps({'name': name, 'role': role})
+    is_admin  = role in ('admin', 'superadmin')
+    users_btn = '<a href="/admin" class="btn" style="text-decoration:none">Users</a>' if is_admin else ''
+    return f'''
+<style>
+#tb-usermenu{{display:flex;align-items:center;gap:8px;border-left:1px solid var(--ink3);margin-left:4px;padding-left:12px}}
+#tb-usermenu .tb-name{{font-size:13px;color:#C9D4E4;white-space:nowrap;max-width:140px;overflow:hidden;text-overflow:ellipsis}}
+#tb-usermenu .tb-role{{font-size:11px;color:#7A9BC4;background:rgba(255,255,255,.08);border-radius:3px;padding:1px 6px;white-space:nowrap}}
+#tb-signout{{text-decoration:none}}
+@media print{{#tb-usermenu{{display:none!important}}}}
+</style>
+<script>
+(function(){{
+  var u = {user_json};
+  var controls = document.querySelector('.controls');
+  if (!controls) return;
+  var menu = document.createElement('div');
+  menu.id = 'tb-usermenu';
+  menu.innerHTML =
+    '<span class="tb-name" title="' + u.name + '">' + u.name + '</span>' +
+    '<span class="tb-role">' + u.role + '</span>' +
+    '{users_btn}' +
+    '<a href="/logout" class="btn" id="tb-signout" style="text-decoration:none">Sign out</a>';
+  controls.appendChild(menu);
+}})();
+</script>
+'''
+
 @app.route('/')
 @require_auth
 def index():
-    return send_file(os.path.join(SITE_DIR, 'index.html'))
+    with open(os.path.join(SITE_DIR, 'index.html'), encoding='utf-8') as f:
+        html = f.read()
+    menu = _build_user_menu(session['user_name'], session['user_role'])
+    html = html.replace('</body>', menu + '</body>')
+    return Response(html, mimetype='text/html')
 
 @app.route('/xlsx.full.min.js')
 def xlsx_js():
@@ -167,7 +202,7 @@ def logout():
     return redirect('/login')
 
 
-# ── Admin: user approval ──────────────────────────────────────────────────────
+# ── Admin: user management ────────────────────────────────────────────────────
 
 @app.route('/admin')
 @require_auth
