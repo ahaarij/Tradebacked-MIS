@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Users — Tradebacked MIS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#eef2f7;min-height:100vh;padding:32px 20px;color:#0f172a}
+.wrap{max-width:720px;margin:0 auto}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+h1{font-size:1.25rem;font-weight:700}
+.back{font-size:.82rem;color:#10264A;font-weight:600;text-decoration:none}
+.back:hover{text-decoration:underline}
+.card{background:#fff;border-radius:14px;box-shadow:0 2px 12px rgba(0,0,0,.07);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;font-size:.73rem;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.04em;padding:10px 16px;text-align:left;border-bottom:1px solid #e2e8f0}
+td{padding:12px 16px;border-bottom:1px solid #f1f5f9;font-size:.84rem}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:.72rem;font-weight:600}
+.badge.pending{background:#fef3c7;color:#92400e}
+.badge.active{background:#dcfce7;color:#166534}
+.badge.admin{background:#dbeafe;color:#1e40af}
+.btn-sm{padding:5px 12px;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;font-family:inherit}
+.btn-approve{background:#10264A;color:#fff}
+.btn-approve:hover{background:#1B3864}
+.btn-remove{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca}
+.btn-remove:hover{background:#fee2e2}
+.actions{display:flex;gap:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>User Management</h1>
+    <a class="back" href="/">← Back to dashboard</a>
+  </div>
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr id="row-{{ u.id }}">
+          <td>{{ u.name }}</td>
+          <td>{{ u.email }}</td>
+          <td>
+            {% if u.role == 'superadmin' %}<span class="badge admin">Superadmin</span>
+            {% elif u.role == 'admin' %}<span class="badge admin">Admin</span>
+            {% else %}<span class="badge">User</span>{% endif %}
+          </td>
+          <td>
+            {% if u.approved %}<span class="badge active">Active</span>
+            {% else %}<span class="badge pending">Pending</span>{% endif %}
+          </td>
+          <td>
+            <div class="actions">
+              {% if not u.approved %}
+              <button class="btn-sm btn-approve" onclick="approve({{ u.id }})">Approve</button>
+              {% endif %}
+              {% if u.id != me %}
+              <button class="btn-sm btn-remove" onclick="remove({{ u.id }})">Remove</button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+async function approve(id) {
+  await fetch(`/admin/approve/${id}`, {method:'POST'});
+  const row = document.getElementById(`row-${id}`);
+  row.querySelector('td:nth-child(4)').innerHTML = '<span class="badge active">Active</span>';
+  const btn = row.querySelector('.btn-approve');
+  if (btn) btn.remove();
+}
+async function remove(id) {
+  if (!confirm('Remove this user?')) return;
+  const res = await fetch(`/admin/remove/${id}`, {method:'POST'});
+  const data = await res.json();
+  if (data.ok) document.getElementById(`row-${id}`).remove();
+  else alert(data.error);
+}
+</script>
+</body>
+</html>

@@ -6,3 +6,5 @@ __pycache__/
 *.building.tmp
 .last_source.sha256
 update.log
+dashboard.db
+.secret_key
