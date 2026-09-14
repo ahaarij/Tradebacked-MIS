@@ -1,17 +1,16 @@
 <#
-  Rebuilds the Tradebacked dashboard from the SharePoint-synced MIS Excel.
-  Runs every 15 minutes via Task Scheduler.
-  Only rebuilds when the Excel file has actually changed (SHA-256 check).
-  Also pulls latest code from git before rebuilding.
+  Runs every 5 minutes via Task Scheduler.
+  1. git pull (picks up code/UI changes pushed from Mac)
+  2. Rebuilds index.html from the SharePoint-synced Excel (only if file changed)
 
   Edit $SharePointFolder and $ExcelPattern to match your setup.
 #>
 
 # ── CONFIG ───────────────────────────────────────────────────────────────────
-$GitDir           = "C:\TBDashboard\repo"   # where the repo is cloned on the server
+$GitDir           = "C:\TBDashboard\repo"
 $SharePointFolder = "C:\Users\Administrator\KAYZEE CURTAINS & UPHOLSTERY FABRICS TRADING LLC\Cred-Desk - Documents"
-$ExcelPattern     = "Tradebacked*MIS*.xls?"   # wildcards match the filename however it's named
-$WebRoot          = "C:\TBDashboard\www"
+$ExcelPattern     = "Tradebacked*MIS*.xls?"
+$SiteDir          = "C:\TBDashboard\repo\tb-dashboard-deploy\site"
 $BuildScript      = "C:\TBDashboard\repo\tb-dashboard-deploy\build\build_dashboard.py"
 $Python           = "python"
 $LogFile          = "C:\TBDashboard\update.log"
@@ -24,14 +23,21 @@ function Log([string]$m) {
     Add-Content -Path $LogFile -Value $line
 }
 
-# Pull latest code from git (UI/logic updates pushed from Mac)
+# ── 1. git pull ───────────────────────────────────────────────────────────────
 if (Test-Path "$GitDir\.git") {
     Push-Location $GitDir
+    $before = & git rev-parse HEAD 2>$null
     & git pull origin main 2>&1 | ForEach-Object { Log "git: $_" }
+    $after = & git rev-parse HEAD 2>$null
     Pop-Location
+    # Restart Flask service if code changed
+    if ($before -ne $after) {
+        Log "Code updated — restarting tb-dashboard service"
+        Restart-Service tb-dashboard -ErrorAction SilentlyContinue
+    }
 }
 
-# Find the newest matching Excel in the SharePoint folder (ignore Excel lock files)
+# ── 2. Find newest Excel in SharePoint folder ─────────────────────────────────
 $xlsx = Get-ChildItem -Path $SharePointFolder -Recurse -File |
         Where-Object { $_.Name -like $ExcelPattern -and $_.Name -notlike '~$*' } |
         Sort-Object LastWriteTime -Descending |
@@ -42,27 +48,27 @@ if (-not $xlsx) {
     exit 0
 }
 
-# Wait to make sure the file isn't still being synced
+# Wait to confirm file isn't still syncing
 $s1 = $xlsx.Length
 Start-Sleep -Seconds 5
 $xlsx.Refresh()
 $s2 = $xlsx.Length
 if ($s1 -ne $s2) {
-    Log "$($xlsx.Name) is still syncing from SharePoint; will retry next cycle"
+    Log "$($xlsx.Name) is still syncing; will retry next cycle"
     exit 0
 }
 
-# Skip rebuild if file hasn't changed since last run
+# ── 3. Skip rebuild if Excel unchanged ────────────────────────────────────────
 $hash = (Get-FileHash $xlsx.FullName -Algorithm SHA256).Hash
 if ((Test-Path $StampFile) -and ((Get-Content $StampFile -Raw).Trim() -eq $hash)) {
-    exit 0  # no change, nothing to do
+    exit 0
 }
 
-Log "Rebuilding dashboard from $($xlsx.Name)..."
+Log "Rebuilding from $($xlsx.Name)..."
 
-# Build to a temp file first, then swap — so the live page is never half-written
-$dest = Join-Path $WebRoot "index.html"
-$tmp  = Join-Path $WebRoot "index.building.tmp"
+# Build to temp then swap — live page never goes down mid-write
+$dest = Join-Path $SiteDir "index.html"
+$tmp  = Join-Path $SiteDir "index.building.tmp"
 
 $ErrorActionPreference = 'Continue'
 & $Python $BuildScript $xlsx.FullName -o $tmp 2>&1
@@ -76,7 +82,7 @@ if ($code -eq 0 -and (Test-Path $tmp)) {
         Move-Item $tmp $dest
     }
     Set-Content $StampFile $hash
-    Log "Published — dashboard is live at dashboard.cred-desk.com"
+    Log "Published — dashboard.cred-desk.com updated"
 } else {
     Remove-Item $tmp -ErrorAction SilentlyContinue
     Log "Build FAILED for $($xlsx.Name); previous dashboard stays online"
