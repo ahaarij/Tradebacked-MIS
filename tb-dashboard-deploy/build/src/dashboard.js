@@ -1,4 +1,4 @@
-/* Tradebacked MIS dashboard logic
+/* Liquidity MIS dashboard logic
    Flow: workbook grids (JSON)  ->  parse()   : clean deals, fees, cash, pipeline, companies
                                 ->  compute() : metrics for the chosen as-of date and segment
                                 ->  render*() : one function per tab
@@ -79,7 +79,7 @@ function makeRegistry(){
 function parse(raw){
   const S = raw.sheets || {}; const reg = makeRegistry();
   const tm = S['Transactions Master'];
-  if (!tm) throw new Error("This workbook has no 'Transactions Master' sheet. Load the Tradebacked MIS file.");
+  if (!tm) throw new Error("This workbook has no 'Transactions Master' sheet. Load the Liquidity MIS file.");
 
   // Company Master
   const cm = S['Company Master'] || []; let r = findRow(cm, [/^us company name$/]);
