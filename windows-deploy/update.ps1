@@ -8,7 +8,7 @@
 
 # CONFIG
 $GitDir           = "C:\TBDashboard\repo"
-$SharePointFolder = "C:\Users\Administrator\KAYZEE CURTAINS & UPHOLSTERY FABRICS TRADING LLC\Cred-Desk - Documents"
+$SharePointFolder = ""   # Set this when you have access to the SharePoint path
 $ExcelPattern     = "Tradebacked*MIS*.xls?"
 $SiteDir          = "C:\TBDashboard\repo\tb-dashboard-deploy\site"
 $BuildScript      = "C:\TBDashboard\repo\tb-dashboard-deploy\build\build_dashboard.py"
@@ -35,7 +35,8 @@ if (Test-Path "$GitDir\.git") {
     }
 }
 
-# 2. Find newest Excel in SharePoint folder
+# 2. Find newest Excel in SharePoint folder (skip if not configured yet)
+if (-not $SharePointFolder) { exit 0 }
 $xlsx = Get-ChildItem -Path $SharePointFolder -Recurse -File |
         Where-Object { $_.Name -like $ExcelPattern -and $_.Name -notlike '~$*' } |
         Sort-Object LastWriteTime -Descending |
