@@ -1,20 +1,22 @@
 <#
   Runs every 5 minutes via Task Scheduler.
   1. git pull (picks up code/UI changes pushed from Mac)
-  2. Rebuilds index.html from the SharePoint-synced Excel (only if file changed)
+  2. Pulls the latest workbook from SharePoint via Microsoft Graph (graph_fetch.py)
+  3. Rebuilds index.html from it (only if the file actually changed)
 
-  Edit $SharePointFolder and $ExcelPattern to match your setup.
+  Graph auth config: windows-deploy/graph_config.json (see graph_config.example.json).
+  One-time interactive sign-in: python tb-dashboard-deploy\build\graph_fetch.py --login
 #>
 
 # CONFIG
-$GitDir           = "C:\TBDashboard\repo"
-$SharePointFolder = ""   # Set this when you have access to the SharePoint path
-$ExcelPattern     = "Tradebacked*MIS*.xls?"
-$SiteDir          = "C:\TBDashboard\repo\tb-dashboard-deploy\site"
-$BuildScript      = "C:\TBDashboard\repo\tb-dashboard-deploy\build\build_dashboard.py"
-$Python           = "python"
-$LogFile          = "C:\TBDashboard\update.log"
-$StampFile        = "C:\TBDashboard\.last_source.sha256"
+$GitDir       = "C:\TBDashboard\repo"
+$GraphScript  = "C:\TBDashboard\repo\tb-dashboard-deploy\build\graph_fetch.py"
+$InboxDir     = "C:\TBDashboard\repo\windows-deploy\inbox"
+$SiteDir      = "C:\TBDashboard\repo\tb-dashboard-deploy\site"
+$BuildScript  = "C:\TBDashboard\repo\tb-dashboard-deploy\build\build_dashboard.py"
+$Python       = "python"
+$LogFile      = "C:\TBDashboard\update.log"
+$StampFile    = "C:\TBDashboard\.last_source.sha256"
 
 function Log([string]$m) {
     $line = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') $m"
@@ -35,27 +37,20 @@ if (Test-Path "$GitDir\.git") {
     }
 }
 
-# 2. Find newest Excel in SharePoint folder (skip if not configured yet)
-if (-not $SharePointFolder) { exit 0 }
-$xlsx = Get-ChildItem -Path $SharePointFolder -Recurse -File |
-        Where-Object { $_.Name -like $ExcelPattern -and $_.Name -notlike '~$*' } |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
+# 2. Pull latest workbook from SharePoint via Microsoft Graph
+New-Item -ItemType Directory -Force -Path $InboxDir | Out-Null
+$xlsxPath = Join-Path $InboxDir "latest.xlsx"
 
-if (-not $xlsx) {
-    Log "No matching Excel found in $SharePointFolder (pattern: $ExcelPattern)"
+$ErrorActionPreference = 'Continue'
+& $Python $GraphScript -o $xlsxPath 2>&1 | ForEach-Object { Log "graph: $_" }
+$fetchCode = $LASTEXITCODE
+$ErrorActionPreference = 'Stop'
+
+if ($fetchCode -ne 0 -or -not (Test-Path $xlsxPath)) {
+    Log "Could not fetch workbook from SharePoint this cycle; previous dashboard stays online"
     exit 0
 }
-
-# Wait to confirm file is not still syncing
-$s1 = $xlsx.Length
-Start-Sleep -Seconds 5
-$xlsx.Refresh()
-$s2 = $xlsx.Length
-if ($s1 -ne $s2) {
-    Log "$($xlsx.Name) is still syncing; will retry next cycle"
-    exit 0
-}
+$xlsx = Get-Item $xlsxPath
 
 # 3. Skip rebuild if Excel unchanged
 $hash = (Get-FileHash $xlsx.FullName -Algorithm SHA256).Hash
@@ -75,11 +70,7 @@ $code = $LASTEXITCODE
 $ErrorActionPreference = 'Stop'
 
 if ($code -eq 0 -and (Test-Path $tmp)) {
-    if (Test-Path $dest) {
-        [IO.File]::Replace($tmp, $dest, $null)
-    } else {
-        Move-Item $tmp $dest
-    }
+    Move-Item -Path $tmp -Destination $dest -Force
     Set-Content $StampFile $hash
     Log "Published - dashboard.cred-desk.com updated"
 } else {

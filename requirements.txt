@@ -1,3 +1,5 @@
 flask
 werkzeug
 openpyxl
+msal
+requests

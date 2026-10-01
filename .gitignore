@@ -8,3 +8,6 @@ __pycache__/
 update.log
 dashboard.db
 .secret_key
+windows-deploy/graph_config.json
+windows-deploy/.graph_token_cache.json
+windows-deploy/inbox/
